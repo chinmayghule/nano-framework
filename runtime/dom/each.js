@@ -1,85 +1,162 @@
 // runtime/dom/each.js
-import { mountChild } from "../core/component.js";
 import { currentComponent, setCurrentComponent } from "../core/context.js";
 import { onDestroy } from "../core/lifecycle.js";
-
+import { mountChild } from "../core/component.js";
 import { log } from "../logger.js";
 
-/**
- * Internal component that owns list items.
- * Props: { listSignal, renderFn }
- * Returns a container element. Provides full lifecycle management for its children.
- */
-export function ListContainer(props) {
-  const { listSignal, renderFn } = props;
-  const container = document.createElement("div");
+/* --------------------------------------------------------------------------
+ *  Helper utilities
+ * -------------------------------------------------------------------------- */
 
-  // capture instance that was set when this component ran
-  const self = currentComponent;
+/** Safely destroy a single list instance. */
+function destroyInstance(inst) {
+  try {
+    inst.cleanup?.();
+  } catch (e) {
+    log.error("List item cleanup error:", e);
+  }
+  try {
+    inst.el?.remove();
+  } catch {
+    /* ignore DOM removal errors */
+  }
+}
 
-  let cleanupFns = [];
-  let unsub = null;
-  let cleaned = false;
-
-  function masterCleanup() {
-    if (cleaned) return;
-    cleaned = true;
-    if (unsub) unsub();
-    for (const fn of cleanupFns)
-      try {
-        fn();
-      } catch (e) {
-        log.error("onDestroy hook error:", e);
-      }
-    cleanupFns = [];
-    container.innerHTML = "";
+/** Create a new child instance under given component context. */
+function createInstance(parentInstance, renderFn, item, index, container) {
+  const prev = currentComponent;
+  setCurrentComponent(parentInstance);
+  let result;
+  try {
+    result = renderFn(item, index);
+    if (result == null) {
+      throw new Error(
+        `Render function for list item at index ${index} returned null or undefined`
+      );
+    }
+  } catch (err) {
+    log.error(`[Render Error] in <ListContainer>:`, err);
+    // Render fallback visual
+    const errorEl = document.createElement("div");
+    errorEl.textContent = err.message;
+    result = [errorEl, null];
+  } finally {
+    setCurrentComponent(prev);
   }
 
-  // Register cleanup on this ListContainer instance
-  if (self) onDestroy(masterCleanup);
+  const [el, cleanup] = Array.isArray(result) ? result : [result, null];
+  container.appendChild(el);
+  return { el, cleanup };
+}
 
-  // subscribe - when list changes re-render items
-  unsub = listSignal.subscribe((list) => {
-    if (cleaned) return;
+/** Perform keyed diff and update DOM. */
+function updateList({
+  list,
+  getKey,
+  renderFn,
+  container,
+  instances,
+  setInstances,
+  parentInstance,
+  cleaned,
+}) {
+  if (cleaned.current) return;
 
-    // destroy old children
-    for (const fn of cleanupFns) {
-      try {
-        fn();
-      } catch (e) {
-        log.error("onDestroy hook error:", e);
-      }
+  log.groupStart("List update");
+  log.trace("List", "New list:", list);
+
+  const newInstances = new Map();
+  const usedKeys = new Set();
+
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i];
+    const key = getKey(item, i);
+    usedKeys.add(key);
+
+    if (instances.has(key)) {
+      // reuse existing element
+      const inst = instances.get(key);
+      container.appendChild(inst.el);
+      newInstances.set(key, inst);
+      log.trace("List", `Reused key: ${key}`);
+    } else {
+      // create new element
+      const inst = createInstance(parentInstance, renderFn, item, i, container);
+      newInstances.set(key, inst);
+      log.trace("List", `Created key: ${key}`);
     }
-    cleanupFns = [];
+  }
+
+  // remove missing
+  for (const [key, inst] of instances) {
+    if (!usedKeys.has(key)) {
+      destroyInstance(inst);
+      log.trace("List", `Removed key: ${key}`);
+    }
+  }
+
+  setInstances(newInstances);
+  log.trace("List", "Current keys:", [...newInstances.keys()]);
+  log.groupEnd();
+}
+
+/* --------------------------------------------------------------------------
+ *  Component: ListContainer
+ * -------------------------------------------------------------------------- */
+
+export function ListContainer({ listSignal, renderFn, getKey }) {
+  const container = document.createElement("div");
+  const self = currentComponent;
+
+  let instances = new Map();
+  const cleaned = { current: false };
+  let unsub = null;
+
+  const setInstances = (map) => {
+    instances = map;
+  };
+
+  const masterCleanup = () => {
+    if (cleaned.current) return;
+    cleaned.current = true;
+    unsub?.();
+    for (const inst of instances.values()) destroyInstance(inst);
+    instances.clear();
     container.innerHTML = "";
+  };
 
-    // restore this component's context while rendering items so mountChild works
-    const prev = currentComponent;
-    setCurrentComponent(self);
+  // subscribe to signal updates
+  unsub = listSignal.subscribe((list) =>
+    updateList({
+      list,
+      getKey,
+      renderFn,
+      container,
+      instances,
+      setInstances,
+      parentInstance: self,
+      cleaned,
+    })
+  );
 
-    list.forEach((item, index) => {
-      const result = renderFn(item, index);
-      if (Array.isArray(result)) {
-        const [node, cleanup] = result;
-        container.appendChild(node);
-        if (typeof cleanup === "function") cleanupFns.push(cleanup);
-      } else {
-        container.appendChild(result);
-      }
-    });
-
-    setCurrentComponent(prev);
-  });
+  if (self) onDestroy(masterCleanup);
 
   return container;
 }
 
-/** Public API: each(signalArray, container, renderFn) -> returns destroy handle of ListContainer */
-export function each(signalArray, container, renderFn) {
-  // mountChild will use the caller's currentComponent as parent (App)
-  // It returns the destroy function of the ListContainer instance.
+/* --------------------------------------------------------------------------
+ *  Public API
+ * -------------------------------------------------------------------------- */
+
+export function each(
+  signalArray,
+  container,
+  renderFn,
+  getKey = (item) => item.id
+) {
   return mountChild(ListContainer, container, {
     listSignal: signalArray,
     renderFn,
+    getKey,
   });
 }

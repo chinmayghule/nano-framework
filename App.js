@@ -1,26 +1,32 @@
-import { signal, each, mountChild } from "./runtime/index.js";
+import { signal, mountChild, each } from "./runtime/index.js";
 import { Counter } from "./Counter.js";
 
 export function App() {
   const div = document.createElement("div");
   const container = document.createElement("div");
   const btn = document.createElement("button");
-
   btn.textContent = "Update List";
   div.append(btn, container);
 
-  const names = signal(["Alpha", "Beta", "Gamma"]);
+  const items = signal([
+    { id: 1, name: "Alpha" },
+    { id: 2, name: "Beta" },
+    { id: 3, name: "Gamma" },
+  ]);
 
-  // Render list reactively
-  each(names, container, (name) => {
-    const el = document.createElement("div");
-    const cleanup = mountChild(Counter, el, { name });
-    return [el, cleanup];
+  // reactive keyed list inside a ListContainer context
+  each(items, container, (item) => {
+    const wrapper = document.createElement("div");
+    const cleanup = mountChild(Counter, wrapper, { name: item.name });
+    return [wrapper, cleanup];
   });
 
-  // Trigger: replace the list when button pressed
   btn.addEventListener("click", () => {
-    names.set(["Delta", "Epsilon"]);
+    items.set([
+      { id: 2, name: "Beta" },
+      { id: 4, name: "Delta" },
+      { id: 1, name: "Alpha" },
+    ]);
   });
 
   return div;

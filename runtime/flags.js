@@ -6,7 +6,7 @@
 // ============================================================================
 
 // 🧠 Main mode flag
-export let LOG_LEVEL = "dev"; // Change to "trace" or "silent" as needed
+export let LOG_LEVEL = "trace"; // Change to "trace" or "silent" as needed
 
 // ✅ Validate and normalize
 const VALID_LEVELS = ["silent", "dev", "trace"];
