@@ -64,11 +64,10 @@ export function mountComponent(
     children: [],
     parent,
     el: null,
-    isDetachedSubtree: false,
   };
 
   // attach to parent’s child list if allowed
-  if (parent && !instance.isDetachedSubtree) {
+  if (parent) {
     parent.children.push(instance);
   }
 
