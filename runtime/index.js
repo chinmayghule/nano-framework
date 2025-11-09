@@ -1,10 +1,6 @@
-// ============================================================================
-// NANO RUNTIME — index.js
-// ----------------------------------------------------------------------------
-// Public entrypoint that re-exports all runtime modules.
-// ============================================================================
-
-export * from "./signals.js";
-export * from "./lifecycle.js";
-export * from "./component.js";
-export * from "./dom.js";
+// runtime/index.js
+export * from "./core/context.js";
+export * from "./core/lifecycle.js";
+export * from "./core/component.js";
+export * from "./reactive/signals.js";
+export * from "./dom/each.js";
