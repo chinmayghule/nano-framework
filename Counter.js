@@ -14,8 +14,8 @@ export function Counter({ name }) {
     p.textContent = `${name}: ${v}`;
   });
 
-  onMount(() => console.log(`Counter "${name}" mounted`));
-  onDestroy(() => console.log(`Counter "${name}" destroyed`));
+  // onMount(() => console.log(`Counter "${name}" mounted`));
+  // onDestroy(() => console.log(`Counter "${name}" destroyed`));
 
   div.append(p, btn);
   return div;

@@ -3,6 +3,8 @@ import { mountChild } from "../core/component.js";
 import { currentComponent, setCurrentComponent } from "../core/context.js";
 import { onDestroy } from "../core/lifecycle.js";
 
+import { log } from "../logger.js";
+
 /**
  * Internal component that owns list items.
  * Props: { listSignal, renderFn }
@@ -27,11 +29,10 @@ export function ListContainer(props) {
       try {
         fn();
       } catch (e) {
-        console.error("child cleanup error", e);
+        log.error("onDestroy hook error:", e);
       }
     cleanupFns = [];
     container.innerHTML = "";
-    // console.log("[ListContainer] destroyed");
   }
 
   // Register cleanup on this ListContainer instance
@@ -46,7 +47,7 @@ export function ListContainer(props) {
       try {
         fn();
       } catch (e) {
-        console.error("child cleanup error", e);
+        log.error("onDestroy hook error:", e);
       }
     }
     cleanupFns = [];
