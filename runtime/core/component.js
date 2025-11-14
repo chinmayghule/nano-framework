@@ -1,47 +1,10 @@
 // runtime/core/component.js
 import { getCurrentComponent, pushContext, popContext } from "./context.js";
+import { createInstance, linkParentChild } from "./instance.js";
+import { destroyComponent } from "./destroy.js";
 
 import { log } from "../logger.js";
 import { IS_DEV } from "../flags.js";
-
-/**
- * Destroys a mounted component instance and all its descendants.
- * - Runs child destroys in reverse order.
- * - Runs destroy hooks (onDestroy).
- * - Removes DOM element and unlinks from parent.
- */
-export function destroyComponent(instance, ComponentName = "Unknown") {
-  // log start of teardown
-  log.trace("Unmount", `Component: ${ComponentName}`);
-
-  // destroy children first (deep last)
-  while (instance.children.length) {
-    const child = instance.children.pop();
-    try {
-      child.destroy();
-    } catch (e) {
-      log.error(`Error destroying child of <${ComponentName}>:`, e);
-    }
-  }
-
-  // run destroy hooks
-  for (const fn of instance.destroyFns) {
-    try {
-      fn();
-    } catch (e) {
-      log.error(`onDestroy hook error in <${ComponentName}>:`, e);
-    }
-  }
-
-  // remove the DOM node if still in document
-  if (instance.el && instance.el.parentNode) instance.el.remove();
-
-  // unlink from parent
-  if (instance.parent) {
-    const idx = instance.parent.children.indexOf(instance);
-    if (idx >= 0) instance.parent.children.splice(idx, 1);
-  }
-}
 
 /**
  * Internal: creates instance object and mounts a component into container.
@@ -59,18 +22,10 @@ export function mountComponent(
   log.trace("Mount", `Mounting start: ${Component.name}`);
 
   // create new instance
-  const instance = {
-    mountFns: [],
-    destroyFns: [],
-    children: [],
-    parent,
-    el: null,
-  };
+  const instance = createInstance(Component, parent);
 
   // attach to parent’s child list if allowed
-  if (parent) {
-    parent.children.push(instance);
-  }
+  linkParentChild(parent, instance);
 
   // push instance onto context stack
   pushContext(instance);
