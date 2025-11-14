@@ -1,4 +1,4 @@
-import { signal, onMount, onDestroy } from "./runtime/index.js";
+import { signal } from "./runtime/index.js";
 
 export function Counter({ name }) {
   const div = document.createElement("div");

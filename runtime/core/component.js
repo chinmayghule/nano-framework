@@ -4,8 +4,8 @@ import { createInstance, linkParentChild } from "./instance.js";
 import { destroyComponent } from "./destroy.js";
 
 import { log } from "../logger.js";
-import { IS_DEV } from "../flags.js";
 import { safeRun } from "../utils/safeRun.js";
+import { assert } from "./assert.js";
 
 /**
  * Internal: creates instance object and mounts a component into container.
@@ -22,8 +22,26 @@ export function mountComponent(
   log.groupStart(`Mount: ${Component.name}`);
   log.trace("Mount", `Mounting start: ${Component.name}`);
 
+  assert(
+    typeof Component === "function",
+    "mountComponent: Component must be a function"
+  );
+
   // create new instance
   const instance = createInstance(Component, parent);
+
+  // enforce correct shape
+  assert(Array.isArray(instance.children), "instance.children must be array", {
+    instance,
+  });
+  assert(Array.isArray(instance.mountFns), "instance.mountFns must be array", {
+    instance,
+  });
+  assert(
+    Array.isArray(instance.destroyFns),
+    "instance.destroyFns must be array",
+    { instance }
+  );
 
   instance.destroy = () => destroyComponent(instance);
 
@@ -48,6 +66,12 @@ export function mountComponent(
     // always restore context
     popContext();
   }
+
+  assert(
+    el instanceof Node,
+    `Component <${Component.name || "anonymous"}> must return a DOM Node`,
+    { Component, returned: el }
+  );
 
   instance.el = el;
 
@@ -74,18 +98,15 @@ export function mount(Component, root, props) {
 
 /** Mount a child component within currently active component */
 export function mountChild(Component, container, props) {
+  assert(
+    typeof Component === "function",
+    "mountChild: Component must be a function"
+  );
+
   const parent = getCurrentComponent();
 
-  if (!parent) {
-    if (IS_DEV) {
-      log.warn(
-        "mountChild() called outside component; falling back to root mount"
-      );
-      return mountComponent(Component, container, null, props);
-    } else {
-      throw new Error("mountChild() must be called inside a component");
-    }
-  }
+  assert(parent, "mountChild() must be called inside a component");
+  assert(!parent.isDestroyed, "mountChild: parent instance is destroyed");
 
   return mountComponent(Component, container, parent, props);
 }

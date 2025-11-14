@@ -1,4 +1,5 @@
 // runtime/reactive/signals.js
+import { assert } from "../core/assert.js";
 import { log } from "../logger.js";
 
 export function signal(initialValue) {
@@ -6,7 +7,10 @@ export function signal(initialValue) {
   const subscribers = new Set();
 
   // dev log
-  log.trace("Signal", `Created signal with initial value: ${initialValue}`);
+  log.trace(
+    "Signal",
+    `Created signal with initial value: ${JSON.stringify(initialValue)}`
+  );
 
   function subscribe(fn) {
     subscribers.add(fn);
@@ -20,6 +24,16 @@ export function signal(initialValue) {
   }
 
   async function set(newValue) {
+    assert(
+      arguments.length === 1,
+      "signal.set() requires exactly one argument"
+    );
+
+    // assert(
+    //   newValue !== undefined,
+    //   "signal.set(undefined) is not allowed (use null instead)"
+    // );
+
     if (Object.is(value, newValue)) return;
     const oldValue = value;
     value = newValue;

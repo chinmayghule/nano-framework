@@ -1,24 +1,15 @@
 // runtime/lifecycle.js
+import { assert } from "./assert.js";
 import { getCurrentComponent } from "./context.js";
-import { IS_DEV } from "../flags.js";
 
 /**
  * Register an onMount hook for the current component instance.
  * Accepts a function to run when the instance is mounted.
  */
 export function onMount(fn) {
-  if (typeof fn !== "function") {
-    throw new TypeError("onMount(fn) expects a function");
-  }
+  assert(typeof fn === "function", "onMount(fn) expects a function", { fn });
   const inst = getCurrentComponent();
-  if (!inst) {
-    const msg = "onMount() called outside a component";
-    if (IS_DEV) {
-      console.warn("[Nano][Warn]", msg);
-      return;
-    }
-    throw new Error(msg);
-  }
+  assert(inst, "onMount() called outside component");
   inst.mountFns.push(fn);
 }
 
@@ -27,17 +18,9 @@ export function onMount(fn) {
  * Accepts a function to run when the instance is destroyed.
  */
 export function onDestroy(fn) {
-  if (typeof fn !== "function") {
-    throw new TypeError("onDestroy(fn) expects a function");
-  }
+  assert(typeof fn === "function", "onDestroy(fn) expects a function", { fn });
   const inst = getCurrentComponent();
-  if (!inst) {
-    const msg = "onDestroy() called outside a component";
-    if (IS_DEV) {
-      console.warn("[Nano][Warn]", msg);
-      return;
-    }
-    throw new Error(msg);
-  }
+  assert(inst, "onDestroy() called outside component");
+  assert(!inst.isDestroyed, "onDestroy() registered after destroy");
   inst.destroyFns.push(fn);
 }

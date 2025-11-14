@@ -1,72 +1,78 @@
 // runtime/core/destroy.js
 import { log } from "../logger.js";
 import { safeRun } from "../utils/safeRun.js";
+import { assert } from "./assert.js";
 
 export function destroyComponent(instance) {
-  // strict validation
-  if (!instance || typeof instance !== "object") {
-    throw new Error("destroyComponent: invalid instance value");
-  }
+  assert(
+    instance && typeof instance === "object",
+    "destroyComponent: invalid instance",
+    { instance }
+  );
 
   const name = instance.Component?.name || "<anonymous>";
 
-  // idempotence guard
-  if (instance.isDestroyed) {
-    log.trace("Destroy", `Already destroyed: ${name}`);
-    return;
-  }
+  assert(
+    !instance.isDestroyed,
+    `destroyComponent: double-destroy for <${name}>`,
+    { instance }
+  );
   instance.isDestroyed = true;
 
-  // 1. destroy children (reverse order)
-  const children = instance.children;
-  if (!Array.isArray(children)) {
-    throw new Error(
-      `destroyComponent: instance.children is not an array in ${name}`
-    );
-  }
+  assert(
+    Array.isArray(instance.children),
+    "destroyComponent: children must be array",
+    { instance }
+  );
 
-  for (let i = children.length - 1; i >= 0; i--) {
-    const child = children[i];
-    if (!child || typeof child !== "object") {
-      throw new Error(`destroyComponent: malformed child in ${name}`);
-    }
-    if (typeof child.destroy !== "function") {
-      throw new Error(
-        `destroyComponent: child instance missing destroy() in ${name}`
-      );
-    }
+  // destroy children (reverse)
+  for (let i = instance.children.length - 1; i >= 0; i--) {
+    const child = instance.children[i];
+    assert(
+      child && typeof child === "object",
+      "destroyComponent: malformed child",
+      { child }
+    );
+    assert(
+      typeof child.destroy === "function",
+      "destroyComponent: child missing destroy()",
+      { child }
+    );
     child.destroy();
   }
 
   instance.children.length = 0;
 
-  // 2. run destroy hooks
+  // run destroy hooks
   for (const fn of instance.destroyFns) {
+    assert(
+      typeof fn === "function",
+      "destroyComponent: destroyFn must be function",
+      { fn }
+    );
     safeRun(fn, `onDestroy <${name}>`);
   }
 
-  // 3. remove DOM node
+  // detach DOM
   if (instance.el) {
-    if (!(instance.el instanceof Node)) {
-      throw new Error(
-        `destroyComponent: instance.el is not a DOM node in ${name}`
-      );
-    }
+    assert(
+      instance.el instanceof Node,
+      "destroyComponent: instance.el must be a DOM Node",
+      { el: instance.el }
+    );
     if (instance.el.parentNode) instance.el.remove();
   }
 
-  // 4. unlink from parent
-  const parent = instance.parent;
-  if (parent) {
-    if (!Array.isArray(parent.children)) {
-      throw new Error(
-        `destroyComponent: parent.children is not array in ${name}`
-      );
-    }
-    const idx = parent.children.indexOf(instance);
-    if (idx !== -1) parent.children.splice(idx, 1);
+  // unlink parent
+  if (instance.parent) {
+    assert(
+      Array.isArray(instance.parent.children),
+      "destroyComponent: parent.children must be array",
+      { parent: instance.parent }
+    );
+    const idx = instance.parent.children.indexOf(instance);
+    if (idx >= 0) instance.parent.children.splice(idx, 1);
   }
 
-  // final log
   log.trace("Unmount", `Component: ${name}`);
 }

@@ -15,11 +15,16 @@ export function App() {
   ]);
 
   // reactive keyed list inside a ListContainer context
-  each(items, container, (item) => {
-    const wrapper = document.createElement("div");
-    const cleanup = mountChild(Counter, wrapper, { name: item.name });
-    return [wrapper, cleanup];
-  });
+  each(
+    items,
+    container,
+    (item) => {
+      const wrapper = document.createElement("div");
+      const cleanup = mountChild(Counter, wrapper, { name: item.name });
+      return [wrapper, cleanup];
+    },
+    (item) => item.id
+  );
 
   btn.addEventListener("click", () => {
     items.set([
