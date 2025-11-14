@@ -1,5 +1,9 @@
 // runtime/dom/each.js
-import { currentComponent, setCurrentComponent } from "../core/context.js";
+import {
+  getCurrentComponent,
+  pushContext,
+  popContext,
+} from "../core/context.js";
 import { onDestroy } from "../core/lifecycle.js";
 import { mountChild } from "../core/component.js";
 import { log } from "../logger.js";
@@ -24,8 +28,8 @@ function destroyInstance(inst) {
 
 /** Create a new child instance under given component context. */
 function createInstance(parentInstance, renderFn, item, index, container) {
-  const prev = currentComponent;
-  setCurrentComponent(parentInstance);
+  const prev = getCurrentComponent();
+  pushContext(parentInstance);
   let result;
   try {
     result = renderFn(item, index);
@@ -41,7 +45,7 @@ function createInstance(parentInstance, renderFn, item, index, container) {
     errorEl.textContent = err.message;
     result = [errorEl, null];
   } finally {
-    setCurrentComponent(prev);
+    popContext();
   }
 
   const [el, cleanup] = Array.isArray(result) ? result : [result, null];
@@ -106,7 +110,7 @@ function updateList({
 
 export function ListContainer({ listSignal, renderFn, getKey }) {
   const container = document.createElement("div");
-  const self = currentComponent;
+  const self = getCurrentComponent();
 
   let instances = new Map();
   const cleaned = { current: false };

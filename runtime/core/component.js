@@ -1,5 +1,6 @@
 // runtime/core/component.js
-import { currentComponent, setCurrentComponent } from "./context.js";
+import { getCurrentComponent, pushContext, popContext } from "./context.js";
+
 import { log } from "../logger.js";
 import { IS_DEV } from "../flags.js";
 
@@ -71,14 +72,13 @@ export function mountComponent(
     parent.children.push(instance);
   }
 
-  // preserve context (for nested mounts)
-  const prev = currentComponent;
-  setCurrentComponent(instance);
+  // push instance onto context stack
+  pushContext(instance);
 
   let el;
 
   try {
-    // attempt to render component
+    // render component
     el = Component(props);
   } catch (error) {
     // display helpful dev message
@@ -88,7 +88,7 @@ export function mountComponent(
     if (container) container.appendChild(el);
   } finally {
     // always restore context
-    setCurrentComponent(prev);
+    popContext();
   }
 
   instance.el = el;
@@ -122,7 +122,9 @@ export function mount(Component, root, props) {
 
 /** Mount a child component within currently active component */
 export function mountChild(Component, container, props) {
-  if (!currentComponent) {
+  const parent = getCurrentComponent();
+
+  if (!parent) {
     if (IS_DEV) {
       log.warn(
         "mountChild() called outside component; falling back to root mount"
@@ -133,5 +135,5 @@ export function mountChild(Component, container, props) {
     }
   }
 
-  return mountComponent(Component, container, currentComponent, props);
+  return mountComponent(Component, container, parent, props);
 }
