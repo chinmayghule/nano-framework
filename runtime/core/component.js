@@ -5,6 +5,7 @@ import { destroyComponent } from "./destroy.js";
 
 import { log } from "../logger.js";
 import { IS_DEV } from "../flags.js";
+import { safeRun } from "../utils/safeRun.js";
 
 /**
  * Internal: creates instance object and mounts a component into container.
@@ -23,6 +24,8 @@ export function mountComponent(
 
   // create new instance
   const instance = createInstance(Component, parent);
+
+  instance.destroy = () => destroyComponent(instance);
 
   // attach to parent’s child list if allowed
   linkParentChild(parent, instance);
@@ -50,11 +53,7 @@ export function mountComponent(
 
   // run onMount hooks (safe execution)
   for (const fn of instance.mountFns) {
-    try {
-      fn();
-    } catch (e) {
-      log.error(`onMount hook error in <${Component.name}>:`, e);
-    }
+    safeRun(fn, `onMount <${instance.Component?.name || "unknown"}>`);
   }
 
   // append DOM element if container provided
@@ -65,9 +64,7 @@ export function mountComponent(
   log.groupEnd();
 
   // return closure bound to instance
-  return function destroy() {
-    destroyComponent(instance, Component.name);
-  };
+  return instance.destroy;
 }
 
 /** Top-level mount: keep API mount(Component, root, props) */

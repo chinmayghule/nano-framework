@@ -1,24 +1,43 @@
-// runtime/core/lifecycle.js
+// runtime/lifecycle.js
 import { getCurrentComponent } from "./context.js";
+import { IS_DEV } from "../flags.js";
 
-/** Register a callback to run after component mount. */
+/**
+ * Register an onMount hook for the current component instance.
+ * Accepts a function to run when the instance is mounted.
+ */
 export function onMount(fn) {
-  const parent = getCurrentComponent();
-
-  if (!parent)
-    throw new Error(
-      `[Nano Error][Lifecycle][onMount:${fn.name}]\nonMount() called outside component`
-    );
-  parent.mountFns.push(fn);
+  if (typeof fn !== "function") {
+    throw new TypeError("onMount(fn) expects a function");
+  }
+  const inst = getCurrentComponent();
+  if (!inst) {
+    const msg = "onMount() called outside a component";
+    if (IS_DEV) {
+      console.warn("[Nano][Warn]", msg);
+      return;
+    }
+    throw new Error(msg);
+  }
+  inst.mountFns.push(fn);
 }
 
-/** Register a callback to run before component destroy. */
+/**
+ * Register an onDestroy hook for the current component instance.
+ * Accepts a function to run when the instance is destroyed.
+ */
 export function onDestroy(fn) {
-  const parent = getCurrentComponent();
-
-  if (!parent)
-    throw new Error(
-      `[Nano Error][Lifecycle][onDestroy:${fn.name}]\nonDestroy() called outside component`
-    );
-  parent.destroyFns.push(fn);
+  if (typeof fn !== "function") {
+    throw new TypeError("onDestroy(fn) expects a function");
+  }
+  const inst = getCurrentComponent();
+  if (!inst) {
+    const msg = "onDestroy() called outside a component";
+    if (IS_DEV) {
+      console.warn("[Nano][Warn]", msg);
+      return;
+    }
+    throw new Error(msg);
+  }
+  inst.destroyFns.push(fn);
 }

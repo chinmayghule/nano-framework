@@ -12,6 +12,9 @@ export function createInstance(Component, parent) {
 
     mountFns: [],
     destroyFns: [],
+
+    // indicates whether destroy() has already run.
+    isDestroyed: false,
   };
 }
 
